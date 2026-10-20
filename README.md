@@ -25,9 +25,9 @@ Only two minimal ligatures are exposed with "->" and "=>". I might add a full se
 
 ## Nerdwand Mono
 
-Nerdwand Mono is the [Nerd Font](https://www.nerdfonts.com) version of Nordwand Mono, patched with the complete set of icons. It is attached to each release as `NerdwandMono.zip`. Icons are kept to a single cell, so the font stays strictly monospaced.
+Nerdwand Mono is the [Nerd Font](https://www.nerdfonts.com) version of Nordwand Mono, patched with the complete set of icons. It is attached to each release as `NerdwandMono.zip`. Icons are kept to a single cell, so the font stays strictly monospaced. The archive includes the font license and the licenses of the bundled icon sets.
 
-To build it yourself, install [fontforge](https://fontforge.org) and run `make build-font build-nerd-font`. The patched fonts will be generated inside `./fonts/nerd-font`.
+To build it yourself, install [uv](https://docs.astral.sh/uv/getting-started/installation/) and [fontforge](https://fontforge.org) with its Python bindings (`python3-fontforge` on Debian and Ubuntu), then run `make install build-font build-nerd-font`. The patched fonts will be generated inside `./fonts/nerd-font`.
 
 ## Compile your own custom version
 

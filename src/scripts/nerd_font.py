@@ -12,9 +12,11 @@ Usage: python -m scripts.nerd_font
 
 import argparse
 import glob
+import hashlib
 import io
 import os
 import re
+import shutil
 import subprocess
 import urllib.request
 import zipfile
@@ -29,6 +31,7 @@ PATCHER_URL = (
     "https://github.com/ryanoasis/nerd-fonts/releases/download/"
     f"v{PATCHER_VERSION}/FontPatcher.zip"
 )
+PATCHER_SHA256 = "42bcb32145499a35732274c7fc48deb434ad0d2e0e118f98527c1479c6fa251a"
 PATCHER_DIR = f".nerd-fonts/{PATCHER_VERSION}"
 INPUT_GLOB = "fonts/ttf/*.ttf"
 OUTPUT_DIR = "fonts/nerd-font"
@@ -39,7 +42,11 @@ def fetch_patcher():
     if not os.path.exists(patcher):
         print(f"Downloading Nerd Fonts patcher v{PATCHER_VERSION}")
         with urllib.request.urlopen(PATCHER_URL) as response:
-            zipfile.ZipFile(io.BytesIO(response.read())).extractall(PATCHER_DIR)
+            archive = response.read()
+        digest = hashlib.sha256(archive).hexdigest()
+        if digest != PATCHER_SHA256:
+            raise SystemExit(f"Patcher checksum mismatch: expected {PATCHER_SHA256}, got {digest}")
+        zipfile.ZipFile(io.BytesIO(archive)).extractall(PATCHER_DIR)
     return patcher
 
 
@@ -80,6 +87,19 @@ def restore_advances(src_path, patched_path):
     font.save(patched_path)
 
 
+def copy_licenses(output_dir):
+    """Ship the font license and the licenses of every patched-in icon set."""
+    shutil.copy("LICENSE-FONT.txt", output_dir)
+    glyphs_dir = os.path.join(PATCHER_DIR, "src", "glyphs")
+    licenses_dir = os.path.join(output_dir, "licenses")
+    os.makedirs(licenses_dir, exist_ok=True)
+    shutil.copy(os.path.join(glyphs_dir, "README.md"), licenses_dir)
+    for path in glob.glob(os.path.join(glyphs_dir, "*", "LICENSE*")):
+        icon_set = os.path.basename(os.path.dirname(path))
+        os.makedirs(os.path.join(licenses_dir, icon_set), exist_ok=True)
+        shutil.copy(path, os.path.join(licenses_dir, icon_set))
+
+
 def generate(output_dir=OUTPUT_DIR):
     paths = sorted(glob.glob(INPUT_GLOB))
     if not paths:
@@ -88,6 +108,7 @@ def generate(output_dir=OUTPUT_DIR):
     os.makedirs(output_dir, exist_ok=True)
     with ThreadPoolExecutor(max_workers=os.cpu_count()) as pool:
         list(pool.map(lambda path: patch(patcher, path, output_dir), paths))
+    copy_licenses(output_dir)
 
 
 if __name__ == "__main__":

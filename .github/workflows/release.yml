@@ -45,7 +45,7 @@ jobs:
           zip -j NordwandMono-TTF.zip fonts/ttf/*.ttf
           zip -j NordwandMono-WOFF.zip fonts/woff/*.woff
           zip -j NordwandMono-WOFF2.zip fonts/woff2/*.woff2
-          zip -j NerdwandMono.zip fonts/nerd-font/*.ttf
+          (cd fonts/nerd-font && zip -r ../../NerdwandMono.zip .)
 
       - name: Upload release assets
         env:
