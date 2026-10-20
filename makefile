@@ -1,4 +1,4 @@
-.PHONY: install build build-otf install-mac
+.PHONY: install build build-otf build-nerd-font install-mac
 
 install:
 	uv sync
@@ -15,6 +15,9 @@ build-font:
 
 build-otf:
 	uv run python -m generate_font --otf
+
+build-nerd-font:
+	uv run python -m scripts.nerd_font
 
 install-mac:
 	cp -r fonts/otf/NordwandMono-*.otf ~/Library/Fonts

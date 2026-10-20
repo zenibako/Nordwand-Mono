@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""Generate Nerdwand Mono, the Nerd Font patched version of Nordwand Mono.
+
+Patches every TTF in fonts/ttf/ with the complete Nerd Fonts icon set using
+the official font-patcher (downloaded on first run). Icons are kept to a
+single cell so the result stays strictly monospaced.
+
+Requires fontforge on the PATH. Run `make build-font` first.
+
+Usage: python -m scripts.nerd_font
+"""
+
+import argparse
+import glob
+import io
+import os
+import re
+import subprocess
+import urllib.request
+import zipfile
+from concurrent.futures import ThreadPoolExecutor
+
+from fontTools.ttLib import TTFont
+
+
+FAMILY_NAME = "Nerdwand Mono"
+PATCHER_VERSION = "3.5.1"
+PATCHER_URL = (
+    "https://github.com/ryanoasis/nerd-fonts/releases/download/"
+    f"v{PATCHER_VERSION}/FontPatcher.zip"
+)
+PATCHER_DIR = f".nerd-fonts/{PATCHER_VERSION}"
+INPUT_GLOB = "fonts/ttf/*.ttf"
+OUTPUT_DIR = "fonts/nerd-font"
+
+
+def fetch_patcher():
+    patcher = os.path.join(PATCHER_DIR, "font-patcher")
+    if not os.path.exists(patcher):
+        print(f"Downloading Nerd Fonts patcher v{PATCHER_VERSION}")
+        with urllib.request.urlopen(PATCHER_URL) as response:
+            zipfile.ZipFile(io.BytesIO(response.read())).extractall(PATCHER_DIR)
+    return patcher
+
+
+def style_name(path):
+    """NordwandMono-SemiBoldItalic.ttf -> "SemiBold Italic"."""
+    style = os.path.splitext(os.path.basename(path))[0].split("-", 1)[1]
+    return re.sub(r"(?<=[a-z])(?=Italic)", " ", style)
+
+
+def patch(patcher, path, output_dir):
+    subprocess.run(
+        [
+            "fontforge", "-script", patcher,
+            "--complete",
+            "--mono",
+            "--name", f"{FAMILY_NAME} {style_name(path)}",
+            "--quiet",
+            "--no-progressbars",
+            "--outputdir", output_dir,
+            path,
+        ],
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    patched = os.path.basename(path).replace("Nordwand", "Nerdwand")
+    restore_advances(path, os.path.join(output_dir, patched))
+    print(f"Patched {path}")
+
+
+def restore_advances(src_path, patched_path):
+    """Undo --mono squeezing the double-width ligatures into a single cell."""
+    src_hmtx = TTFont(src_path)["hmtx"]
+    font = TTFont(patched_path)
+    for name, (advance, _) in src_hmtx.metrics.items():
+        patched_advance, lsb = font["hmtx"][name]
+        if advance > patched_advance:
+            font["hmtx"][name] = (advance, lsb)
+    font.save(patched_path)
+
+
+def generate(output_dir=OUTPUT_DIR):
+    paths = sorted(glob.glob(INPUT_GLOB))
+    if not paths:
+        raise SystemExit(f"No fonts found in {INPUT_GLOB}, run `make build-font` first")
+    patcher = fetch_patcher()
+    os.makedirs(output_dir, exist_ok=True)
+    with ThreadPoolExecutor(max_workers=os.cpu_count()) as pool:
+        list(pool.map(lambda path: patch(patcher, path, output_dir), paths))
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate the Nerdwand Mono Nerd Font")
+    parser.add_argument(
+        "-o",
+        "--output",
+        default=OUTPUT_DIR,
+        help=f"Output directory (default: {OUTPUT_DIR})",
+    )
+    generate(parser.parse_args().output)

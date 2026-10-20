@@ -23,6 +23,12 @@ Some alternative character designs are available to tweak the vibe of the font t
 
 Only two minimal ligatures are exposed with "->" and "=>". I might add a full set of ligatures later on, but I personally won't be using them.
 
+## Nerdwand Mono
+
+Nerdwand Mono is the [Nerd Font](https://www.nerdfonts.com) version of Nordwand Mono, patched with the complete set of icons. It is attached to each release as `NerdwandMono.zip`. Icons are kept to a single cell, so the font stays strictly monospaced.
+
+To build it yourself, install [fontforge](https://fontforge.org) and run `make build-font build-nerd-font`. The patched fonts will be generated inside `./fonts/nerd-font`.
+
 ## Compile your own custom version
 
 This font is generated with python. Each glyph is drawn from a python glyph class, in which you can inject a drawing context object. You can for example modify some metrics like the x-height, the capital height etc.
