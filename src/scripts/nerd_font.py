@@ -33,7 +33,7 @@ PATCHER_URL = (
 )
 PATCHER_SHA256 = "42bcb32145499a35732274c7fc48deb434ad0d2e0e118f98527c1479c6fa251a"
 PATCHER_DIR = f".nerd-fonts/{PATCHER_VERSION}"
-INPUT_GLOB = "fonts/ttf/*.ttf"
+INPUT_DIR = "fonts/ttf"
 OUTPUT_DIR = "fonts/nerd-font"
 
 
@@ -56,13 +56,13 @@ def style_name(path):
     return re.sub(r"(?<=[a-z])(?=Italic)", " ", style)
 
 
-def patch(patcher, path, output_dir):
+def patch(patcher, path, output_dir, family_name):
     subprocess.run(
         [
             "fontforge", "-script", patcher,
             "--complete",
             "--mono",
-            "--name", f"{FAMILY_NAME} {style_name(path)}",
+            "--name", f"{family_name} {style_name(path)}",
             "--quiet",
             "--no-progressbars",
             "--outputdir", output_dir,
@@ -71,7 +71,8 @@ def patch(patcher, path, output_dir):
         check=True,
         stdout=subprocess.DEVNULL,
     )
-    patched = os.path.basename(path).replace("Nordwand", "Nerdwand")
+    style = os.path.splitext(os.path.basename(path))[0].split("-", 1)[1]
+    patched = f"{family_name.replace(' ', '')}-{style}.ttf"
     restore_advances(path, os.path.join(output_dir, patched))
     print(f"Patched {path}")
 
@@ -100,14 +101,14 @@ def copy_licenses(output_dir):
         shutil.copy(path, os.path.join(licenses_dir, icon_set))
 
 
-def generate(output_dir=OUTPUT_DIR):
-    paths = sorted(glob.glob(INPUT_GLOB))
+def generate(output_dir=OUTPUT_DIR, input_dir=INPUT_DIR, family_name=FAMILY_NAME):
+    paths = sorted(glob.glob(os.path.join(input_dir, "*.ttf")))
     if not paths:
-        raise SystemExit(f"No fonts found in {INPUT_GLOB}, run `make build-font` first")
+        raise SystemExit(f"No fonts found in {input_dir}, run `make build-font` first")
     patcher = fetch_patcher()
     os.makedirs(output_dir, exist_ok=True)
     with ThreadPoolExecutor(max_workers=os.cpu_count()) as pool:
-        list(pool.map(lambda path: patch(patcher, path, output_dir), paths))
+        list(pool.map(lambda path: patch(patcher, path, output_dir, family_name), paths))
     copy_licenses(output_dir)
 
 
@@ -119,4 +120,16 @@ if __name__ == "__main__":
         default=OUTPUT_DIR,
         help=f"Output directory (default: {OUTPUT_DIR})",
     )
-    generate(parser.parse_args().output)
+    parser.add_argument(
+        "-i",
+        "--input",
+        default=INPUT_DIR,
+        help=f"Directory of TTF files to patch (default: {INPUT_DIR})",
+    )
+    parser.add_argument(
+        "--family",
+        default=FAMILY_NAME,
+        help=f"Family name of the patched fonts (default: {FAMILY_NAME})",
+    )
+    args = parser.parse_args()
+    generate(args.output, args.input, args.family)
